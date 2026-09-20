@@ -1,0 +1,4 @@
+<%# Unlocking flips the panel AND the delete buttons, so the list rides along %>
+<%# as an out-of-band swap and both update in a single round trip.           %>
+<%- include('write-panel', { canWrite: canWrite, error: locals.error }) %>
+<%- include('file-list', { files: files, canWrite: canWrite, oob: true }) %>

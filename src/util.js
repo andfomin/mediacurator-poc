@@ -1,0 +1,140 @@
+import crypto from 'node:crypto';
+
+const AUDIO_EXTENSIONS = new Map([
+  ['mp3', 'audio/mpeg'],
+  ['m4a', 'audio/mp4'],
+  ['m4b', 'audio/mp4'],
+  ['aac', 'audio/aac'],
+  ['wav', 'audio/wav'],
+  ['flac', 'audio/flac'],
+  ['ogg', 'audio/ogg'],
+  ['oga', 'audio/ogg'],
+  ['opus', 'audio/opus'],
+  ['weba', 'audio/webm'],
+  ['webm', 'audio/webm'],
+  ['aif', 'audio/aiff'],
+  ['aiff', 'audio/aiff'],
+  ['wma', 'audio/x-ms-wma'],
+]);
+
+const MAX_NAME_LENGTH = 200;
+
+export function extensionOf(name) {
+  const dot = name.lastIndexOf('.');
+  if (dot <= 0 || dot === name.length - 1) return '';
+  return name.slice(dot + 1).toLowerCase();
+}
+
+export function isAudioName(name) {
+  return AUDIO_EXTENSIONS.has(extensionOf(name));
+}
+
+export function contentTypeForName(name) {
+  return AUDIO_EXTENSIONS.get(extensionOf(name)) ?? 'application/octet-stream';
+}
+
+/**
+ * Resolves the content type to store on the blob. A caller-supplied audio/* type
+ * wins; anything generic (or absent) falls back to the extension, so files stay
+ * playable even when the uploader sends application/octet-stream.
+ */
+export function resolveContentType(declared, name) {
+  const type = declared?.split(';')[0]?.trim().toLowerCase();
+  if (type?.startsWith('audio/')) return type;
+  return contentTypeForName(name);
+}
+
+/**
+ * Reduces an arbitrary client-supplied filename to a safe, flat blob name.
+ * Strips any directory component, so path traversal cannot survive this.
+ * Returns '' when nothing usable is left; callers must treat that as a 400.
+ */
+export function sanitizeBlobName(raw) {
+  if (typeof raw !== 'string') return '';
+  const base = raw.normalize('NFC').split(/[/\\]/).pop() ?? '';
+  const cleaned = base
+    .replace(/[\x00-\x1f\x7f]/g, '')
+    .replace(/[^\p{L}\p{N}._\-()[\] ]/gu, '-')
+    .replace(/-{2,}/g, '-')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+    .replace(/^[.\-]+/, '')
+    .replace(/[.\-\s]+$/, '');
+  if (!cleaned) return '';
+  if (cleaned.length <= MAX_NAME_LENGTH) return cleaned;
+  // Truncate the stem, never the extension.
+  const ext = extensionOf(cleaned);
+  const suffix = ext ? `.${ext}` : '';
+  return cleaned.slice(0, MAX_NAME_LENGTH - suffix.length) + suffix;
+}
+
+/**
+ * Rejects names that cannot be legitimate blobs in this app. The sanitizer
+ * already blocks traversal on the write path; this guards the read paths, where
+ * the name arrives straight from a query string.
+ */
+export function isSafeBlobName(name) {
+  if (typeof name !== 'string' || !name || name.length > 1024) return false;
+  if (name.startsWith('/') || name.includes('\\')) return false;
+  if (name.split('/').some((segment) => segment === '.' || segment === '..')) return false;
+  if (/[\x00-\x1f\x7f]/.test(name)) return false;
+  return true;
+}
+
+/** Constant-time comparison that does not leak the secret's length. */
+export function safeEqual(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  const digestA = crypto.createHash('sha256').update(a).digest();
+  const digestB = crypto.createHash('sha256').update(b).digest();
+  return crypto.timingSafeEqual(digestA, digestB);
+}
+
+/**
+ * Parses a single-range `Range` header against a known blob size.
+ * Returns null when the whole entity should be sent (absent, malformed or
+ * multi-range headers all fall back to a 200), or { start, end, satisfiable }.
+ */
+export function parseRange(header, size) {
+  if (!header || typeof header !== 'string') return null;
+  const match = /^bytes=(\d*)-(\d*)$/.exec(header.trim());
+  if (!match) return null;
+  const [, rawStart, rawEnd] = match;
+  if (rawStart === '' && rawEnd === '') return null;
+
+  let start;
+  let end;
+  if (rawStart === '') {
+    // Suffix form: `bytes=-500` means the last 500 bytes.
+    const suffixLength = Number(rawEnd);
+    if (suffixLength === 0) return { satisfiable: false };
+    start = Math.max(0, size - suffixLength);
+    end = size - 1;
+  } else {
+    start = Number(rawStart);
+    end = rawEnd === '' ? size - 1 : Math.min(Number(rawEnd), size - 1);
+  }
+
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
+  if (size === 0 || start >= size || start > end) return { satisfiable: false };
+  return { start, end, satisfiable: true };
+}
+
+export function formatBytes(bytes) {
+  if (!Number.isFinite(bytes) || bytes < 0) return '';
+  if (bytes < 1024) return `${bytes} B`;
+  const units = ['KB', 'MB', 'GB', 'TB'];
+  let value = bytes / 1024;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  return `${value < 10 ? value.toFixed(1) : Math.round(value)} ${units[unit]}`;
+}
+
+/** Inserts `-2`, `-3`, … before the extension when resolving a name collision. */
+export function withNameSuffix(name, counter) {
+  const ext = extensionOf(name);
+  if (!ext) return `${name}-${counter}`;
+  return `${name.slice(0, -(ext.length + 1))}-${counter}.${ext}`;
+}

@@ -1,0 +1,14 @@
+<% if (locals.error) { %>
+  <p class="error"><%= error %></p>
+<% } else if (locals.file) { %>
+  <figure class="player">
+    <figcaption><%= file.name %></figcaption>
+    <audio
+      controls
+      autoplay
+      preload="metadata"
+      data-name="<%= file.name %>"
+      src="/audio?name=<%= encodeURIComponent(file.name) %>"
+    ></audio>
+  </figure>
+<% } %>

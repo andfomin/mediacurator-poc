@@ -1,0 +1,26 @@
+<section id="write-panel" class="panel">
+  <% if (locals.canWrite) { %>
+    <form
+      id="upload-form"
+      hx-post="/api/files"
+      hx-encoding="multipart/form-data"
+      hx-target="#file-list"
+      hx-swap="outerHTML"
+    >
+      <label for="file-input">Add audio</label>
+      <input id="file-input" type="file" name="file" accept="audio/*" multiple required />
+      <button type="submit">Upload</button>
+      <progress id="upload-progress" value="0" max="100" hidden></progress>
+    </form>
+    <form class="inline" hx-post="/lock" hx-target="#write-panel" hx-swap="outerHTML">
+      <button type="submit" class="ghost">Lock</button>
+    </form>
+  <% } else { %>
+    <form class="inline" hx-post="/unlock" hx-target="#write-panel" hx-swap="outerHTML">
+      <label for="secret">Secret</label>
+      <input id="secret" type="password" name="secret" autocomplete="current-password" required />
+      <button type="submit">Unlock</button>
+      <% if (locals.error) { %><span class="error"><%= error %></span><% } %>
+    </form>
+  <% } %>
+</section>

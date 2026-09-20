@@ -1,0 +1,25 @@
+{
+  "name": "mediacurator-poc",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Upload, browse and play audio files stored in an Azure Blob container.",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "npm@11.5.1",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node --test \"test/**/*.test.js\""
+  },
+  "dependencies": {
+    "@azure/identity": "^4.13.3",
+    "@azure/storage-blob": "^12.33.0",
+    "busboy": "^1.6.0",
+    "cookie-parser": "^1.4.7",
+    "ejs": "^6.0.1",
+    "express": "^5.2.1",
+    "htmx.org": "^2.0.10"
+  }
+}

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Media Curator</title>
+    <link rel="stylesheet" href="/static/app.css" />
+    <script src="/vendor/htmx.min.js" defer></script>
+    <script src="/static/app.js" defer></script>
+  </head>
+  <body>
+    <header class="page-header">
+      <h1>Media Curator</h1>
+      <p class="sub">Audio library</p>
+    </header>
+
+    <main>
+      <%- include('partials/write-panel') %>
+
+      <div id="player" class="player-slot" aria-live="polite"></div>
+
+      <section class="list-section">
+        <div class="list-header">
+          <h2>Files</h2>
+          <button type="button" class="ghost" hx-get="/files" hx-target="#file-list" hx-swap="outerHTML">
+            Refresh
+          </button>
+        </div>
+        <%- include('partials/file-list', { files: files, oob: false }) %>
+      </section>
+    </main>
+  </body>
+</html>

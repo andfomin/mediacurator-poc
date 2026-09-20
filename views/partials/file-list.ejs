@@ -1,0 +1,36 @@
+<ul id="file-list" class="file-list"<% if (locals.oob) { %> hx-swap-oob="true"<% } %>>
+  <% if (files.length === 0) { %>
+    <li class="empty">No audio files yet.</li>
+  <% } %>
+  <% files.forEach((file) => { %>
+    <li class="file">
+      <button
+        type="button"
+        class="file-name"
+        hx-get="/player?name=<%= encodeURIComponent(file.name) %>"
+        hx-target="#player"
+        hx-swap="innerHTML"
+      >
+        <%= file.name %>
+      </button>
+      <span class="file-meta">
+        <%= formatBytes(file.size) %><% if (file.lastModified) { %>
+          · <time datetime="<%= file.lastModified.toISOString() %>"><%= file.lastModified.toISOString().slice(0, 16).replace('T', ' ') %> UTC</time>
+        <% } %>
+      </span>
+      <% if (locals.canWrite) { %>
+        <button
+          type="button"
+          class="danger"
+          hx-delete="/api/files?name=<%= encodeURIComponent(file.name) %>"
+          hx-target="#file-list"
+          hx-swap="outerHTML"
+          hx-confirm="Delete <%= file.name %>? This cannot be undone."
+          data-name="<%= file.name %>"
+        >
+          Delete
+        </button>
+      <% } %>
+    </li>
+  <% }) %>
+</ul>
